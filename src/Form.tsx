@@ -1,38 +1,25 @@
+/**
+ * Form 主要做下面这几件事
+ *  1. 初始化 Form 实例
+ *  2. 注册回调函数，onFieldsChange、onValuesChange、onFinish 等
+ *  3. 设置初始值（仅当第一次渲染时会设置 store，其他情况下仅设置 initialValues）
+ *  4. 提供 Provider
+ *  5. 渲染子组件
+ */
 import * as React from 'react';
 import type {
   Store,
   FormInstance,
   FieldData,
-  ValidateMessages,
-  Callbacks,
   InternalFormInstance,
+  FormProps,
+  RenderProps
 } from './interface';
 import useForm from './useForm';
 import FieldContext, { HOOK_MARK } from './FieldContext';
 import type { FormContextProps } from './FormContext';
 import FormContext from './FormContext';
 import { isSimilar } from './utils/valueUtil';
-
-type BaseFormProps = Omit<React.FormHTMLAttributes<HTMLFormElement>, 'onSubmit'>;
-
-type RenderProps = (values: Store, form: FormInstance) => JSX.Element | React.ReactNode;
-
-export interface FormProps<Values = any> extends BaseFormProps {
-  initialValues?: Store;
-  form?: FormInstance<Values>;
-  children?: RenderProps | React.ReactNode;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  component?: false | string | React.FC<any> | React.ComponentClass<any>;
-  fields?: FieldData[];
-  name?: string;
-  validateMessages?: ValidateMessages;
-  onValuesChange?: Callbacks<Values>['onValuesChange'];
-  onFieldsChange?: Callbacks<Values>['onFieldsChange'];
-  onFinish?: Callbacks<Values>['onFinish'];
-  onFinishFailed?: Callbacks<Values>['onFinishFailed'];
-  validateTrigger?: string | string[] | false;
-  preserve?: boolean;
-}
 
 const Form: React.ForwardRefRenderFunction<FormInstance, FormProps> = (
   {
@@ -57,6 +44,8 @@ const Form: React.ForwardRefRenderFunction<FormInstance, FormProps> = (
 
   // We customize handle event since Context will makes all the consumer re-render:
   // https://reactjs.org/docs/context.html#contextprovider
+
+  // 初始化 Form 实例
   const [formInstance] = useForm(form);
   const {
     useSubscribe,
@@ -82,6 +71,8 @@ const Form: React.ForwardRefRenderFunction<FormInstance, FormProps> = (
     ...formContext.validateMessages,
     ...validateMessages,
   });
+
+  // 配置回调函数
   setCallbacks({
     onValuesChange,
     onFieldsChange: (changedFields: FieldData[], ...rest) => {
@@ -103,8 +94,13 @@ const Form: React.ForwardRefRenderFunction<FormInstance, FormProps> = (
   setPreserve(preserve);
 
   // Set initial value, init store value when first mount
+  // 标志位，是否第一次挂载
   const mountRef = React.useRef(null);
+
+  // 设置初始值
   setInitialValues(initialValues, !mountRef.current);
+
+  // 标志位赋值
   if (!mountRef.current) {
     mountRef.current = true;
   }
@@ -129,6 +125,7 @@ const Form: React.ForwardRefRenderFunction<FormInstance, FormProps> = (
     prevFieldsRef.current = fields;
   }, [fields, formInstance]);
 
+  // 初始化 context value
   const formContextValue = React.useMemo(
     () => ({
       ...(formInstance as InternalFormInstance),
@@ -137,6 +134,7 @@ const Form: React.ForwardRefRenderFunction<FormInstance, FormProps> = (
     [formInstance, validateTrigger],
   );
 
+  // 提供 Provider
   const wrapperNode = (
     <FieldContext.Provider value={formContextValue}>{childrenNode}</FieldContext.Provider>
   );

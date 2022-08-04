@@ -213,23 +213,42 @@ type RecursivePartial<T> = T extends object
 
 export interface FormInstance<Values = any> {
   // Origin Form API
+  // 按名称路径获取字段值
   getFieldValue: (name: NamePath) => StoreValue;
-  getFieldsValue(): Values;
-  getFieldsValue(nameList: NamePath[] | true, filterFunc?: (meta: Meta) => boolean): any;
+
+  // 按名称路径列表获取字段值列表
+  getFieldsValue: (() => Values) & ((nameList: NamePath[] | true, filterFunc?: (meta: Meta) => boolean) => any);
   getFieldError: (name: NamePath) => string[];
+
+  // 按名称路径列表获取字段错误列表
   getFieldsError: (nameList?: NamePath[]) => FieldError[];
+
+  // 按名称路径获取字段警告
   getFieldWarning: (name: NamePath) => string[];
-  isFieldsTouched(nameList?: NamePath[], allFieldsTouched?: boolean): boolean;
-  isFieldsTouched(allFieldsTouched?: boolean): boolean;
+
+  // 检查是否触摸了字段列表
+  isFieldsTouched: ((nameList?: NamePath[], allFieldsTouched?: boolean) => boolean) & ((allFieldsTouched?: boolean) => boolean);
   isFieldTouched: (name: NamePath) => boolean;
+
+  // 检查字段是否正在验证
   isFieldValidating: (name: NamePath) => boolean;
+
+  // 检查字段列表是否正在验证
   isFieldsValidating: (nameList: NamePath[]) => boolean;
+
+  // 重置字段状态
   resetFields: (fields?: NamePath[]) => void;
+
+  // 设置字段状态
   setFields: (fields: FieldData[]) => void;
+
+   // 设置字段值
   setFieldsValue: (value: RecursivePartial<Values>) => void;
+
+  // 触发字段进行验证
   validateFields: ValidateFields<Values>;
 
-  // New API
+  // New API, 触发表单提交
   submit: () => void;
 }
 
@@ -300,4 +319,50 @@ export interface ValidateMessages {
   pattern?: {
     mismatch?: ValidateMessage;
   };
+}
+
+export type BaseFormProps = Omit<React.FormHTMLAttributes<HTMLFormElement>, 'onSubmit'>;
+
+export type RenderProps = (values: Store, form: FormInstance) => JSX.Element | React.ReactNode;
+
+export interface FormProps<Values = any> extends BaseFormProps {
+  // Form 的初始值
+  initialValues?: Store;
+
+  // 设置由创建的表单实例 useForm
+  form?: FormInstance<Values>;
+
+  // 孩子元素
+  children?: RenderProps | React.ReactNode;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+  // 	自定义表单渲染组件
+  component?: false | string | React.FC<any> | React.ComponentClass<any>;
+
+  // 控制表单字段状态。仅在 Redux 中使用
+  fields?: FieldData[];
+
+  // 带有 FormProvider 的配置名称
+  name?: string;
+
+  // 设置验证消息模板
+  validateMessages?: ValidateMessages;
+
+  // 当 Field 的值改变时触发
+  onValuesChange?: Callbacks<Values>['onValuesChange'];
+
+  // 当 Field 的任何值改变时触发
+  onFieldsChange?: Callbacks<Values>['onFieldsChange'];
+
+  // 表单提交成功时触发
+  onFinish?: Callbacks<Values>['onFinish'];
+
+  // 表单提交失败时触发
+  onFinishFailed?: Callbacks<Values>['onFinishFailed'];
+
+  // 使用规则验证配置触发点(触发时机), 值一般为 onBlur、 onChange
+  validateTrigger?: string | string[] | false;
+
+  // 删除字段时是否保留值
+  preserve?: boolean;
 }

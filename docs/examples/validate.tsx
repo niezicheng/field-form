@@ -156,8 +156,9 @@ export default () => {
 
               <button
                 type="button"
-                onClick={() => {
-                  form.validateFields();
+                onClick={async () => {
+                  const res = await form.validateFields();
+                  console.log(res, 'res')
                 }}
               >
                 Validate All

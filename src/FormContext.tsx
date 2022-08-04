@@ -1,9 +1,7 @@
 import * as React from 'react';
-import { ValidateMessages, FormInstance, FieldData, Store } from './interface';
+import type { ValidateMessages, FormInstance, FieldData, Store } from './interface';
 
-export interface Forms {
-  [name: string]: FormInstance;
-}
+export type Forms = Record<string, FormInstance>;
 
 export interface FormChangeInfo {
   changedFields: FieldData[];
@@ -24,10 +22,13 @@ export interface FormProviderProps {
 export interface FormContextProps extends FormProviderProps {
   triggerFormChange: (name: string, changedFields: FieldData[]) => void;
   triggerFormFinish: (name: string, values: Store) => void;
+  // 注册 form
   registerForm: (name: string, form: FormInstance) => void;
+  // 取消 from 注册
   unregisterForm: (name: string) => void;
 }
 
+// Form 全局上下文
 const FormContext = React.createContext<FormContextProps>({
   triggerFormChange: () => {},
   triggerFormFinish: () => {},

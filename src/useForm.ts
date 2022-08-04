@@ -55,21 +55,21 @@ export type ReducerAction = UpdateAction | ValidateAction;
 export class FormStore {
   private formHooked: boolean = false;
 
-  private forceRootUpdate: () => void;
+  private forceRootUpdate: () => void; // 强制刷新触发渲染函数
 
   private subscribable: boolean = true;
 
-  private store: Store = {};
+  private store: Store = {}; // 存放表单中所有的数据
 
-  private fieldEntities: FieldEntity[] = [];
+  private fieldEntities: FieldEntity[] = []; // 保存表单中所有 Field 组件实例
 
-  private initialValues: Store = {};
+  private initialValues: Store = {}; // 表单初始值，resetFields 时使用此值
 
-  private callbacks: Callbacks = {};
+  private callbacks: Callbacks = {};  // 回调函数
 
-  private validateMessages: ValidateMessages = null;
+  private validateMessages: ValidateMessages = null; // 验证提示信息展示模版
 
-  private preserve?: boolean = null;
+  private preserve?: boolean = null; // 当 filed 移除时是否保留值
 
   private lastValidatePromise: Promise<FieldError[]> = null;
 
@@ -77,23 +77,23 @@ export class FormStore {
     this.forceRootUpdate = forceRootUpdate;
   }
 
+  // 获取 Form 实例
   public getForm = (): InternalFormInstance => ({
-    getFieldValue: this.getFieldValue,
-    getFieldsValue: this.getFieldsValue,
-    getFieldError: this.getFieldError,
-    getFieldWarning: this.getFieldWarning,
-    getFieldsError: this.getFieldsError,
-    isFieldsTouched: this.isFieldsTouched,
-    isFieldTouched: this.isFieldTouched,
-    isFieldValidating: this.isFieldValidating,
-    isFieldsValidating: this.isFieldsValidating,
-    resetFields: this.resetFields,
-    setFields: this.setFields,
-    setFieldsValue: this.setFieldsValue,
-    validateFields: this.validateFields,
-    submit: this.submit,
-
-    getInternalHooks: this.getInternalHooks,
+    getFieldValue: this.getFieldValue, // 获取字段值
+    getFieldsValue: this.getFieldsValue, // 获取字段值【多个】
+    getFieldError: this.getFieldError, // 获取字段错误信息
+    getFieldWarning: this.getFieldWarning, // 获取字段警告信息
+    getFieldsError: this.getFieldsError, // 获取字段错误信息【多个】
+    isFieldsTouched: this.isFieldsTouched, // 字段是否被触摸【多个】
+    isFieldTouched: this.isFieldTouched, // 字段是否被触摸
+    isFieldValidating: this.isFieldValidating, // 字段是否正在验证
+    isFieldsValidating: this.isFieldsValidating, // 字段是否正在验证【多个】
+    resetFields: this.resetFields, // 重置字段状态或值信息【多个】
+    setFields: this.setFields, // 设置字段状态信息【statue: 'touched' | 'validation' | 'errors' | 'name' | 'value'】
+    setFieldsValue: this.setFieldsValue, // 设置字段值【多个】
+    validateFields: this.validateFields, // 验证字段信息
+    submit: this.submit, // 提交方法
+    getInternalHooks: this.getInternalHooks, // 内部 hooks
   });
 
   // ======================== Internal Hooks ========================
@@ -122,9 +122,7 @@ export class FormStore {
     this.subscribable = subscribable;
   };
 
-  /**
-   * First time `setInitialValues` should update store with initial value
-   */
+  // 首次挂载时，初始化 initValues 信息 【init = true】
   private setInitialValues = (initialValues: Store, init: boolean) => {
     this.initialValues = initialValues || {};
     if (init) {
@@ -132,16 +130,19 @@ export class FormStore {
     }
   };
 
+  // 获取 Form 初始化值
   private getInitialValue = (namePath: InternalNamePath) => getValue(this.initialValues, namePath);
 
   private setCallbacks = (callbacks: Callbacks) => {
     this.callbacks = callbacks;
   };
 
+  // 设置验证信息摸版方法
   private setValidateMessages = (validateMessages: ValidateMessages) => {
     this.validateMessages = validateMessages;
   };
 
+  // 设置当 filed 移除时是否保留值
   private setPreserve = (preserve?: boolean) => {
     this.preserve = preserve;
   };
@@ -166,8 +167,9 @@ export class FormStore {
 
   // ============================ Fields ============================
   /**
-   * Get registered field entities.
-   * @param pure Only return field which has a `name`. Default: false
+   * 获取已注册的 field 实例
+   * @param pure 是否去除不含 name 属性的 filed 实例
+   * @returns filed 集合
    */
   private getFieldEntities = (pure: boolean = false) => {
     if (!pure) {
@@ -177,6 +179,11 @@ export class FormStore {
     return this.fieldEntities.filter(field => field.getNamePath().length);
   };
 
+  /**
+   *
+   * @param pure 是否去除不含 name 属性的 filed 实例
+   * @returns [{ namePath: filed }] 集合
+   */
   private getFieldsMap = (pure: boolean = false) => {
     const cache: NameMap<FieldEntity> = new NameMap();
     this.getFieldEntities(pure).forEach(field => {
@@ -186,19 +193,32 @@ export class FormStore {
     return cache;
   };
 
+  /**
+   * 通过 namePathList 获取相应 filed 实例集合
+   * @param nameList 需要获取 filed 实例的 name 属性值集合
+   * @returns 指定 nameList 名称的 filed 实例集合
+   */
   private getFieldEntitiesForNamePathList = (
     nameList?: NamePath[],
   ): (FieldEntity | InvalidateFieldEntity)[] => {
     if (!nameList) {
+      // 返回存在 name 的 filed 实例
       return this.getFieldEntities(true);
     }
     const cache = this.getFieldsMap(true);
     return nameList.map(name => {
       const namePath = getNamePath(name);
+      // 路径正确返回对应的 filed 实例，否则返回对象 key 为 INVALIDATE_NAME_PATH
       return cache.get(namePath) || { INVALIDATE_NAME_PATH: getNamePath(name) };
     });
   };
 
+  /**
+   * 获取指定 nameList 包含的 filedName 对应的 value 集合对象
+   * @param nameList filedName 集合数组
+   * @param filterFunc 过滤函数
+   * @returns filedValue 集合对象
+   */
   private getFieldsValue = (nameList?: NamePath[] | true, filterFunc?: (meta: Meta) => boolean) => {
     this.warningUnhooked();
 
@@ -234,6 +254,11 @@ export class FormStore {
     return cloneByNamePathList(this.store, filteredNameList.map(getNamePath));
   };
 
+  /**
+   * 获取对应 filedName 的值
+   * @param name filed 名称
+   * @returns filedvalue 值
+   */
   private getFieldValue = (name: NamePath) => {
     this.warningUnhooked();
 
@@ -241,6 +266,11 @@ export class FormStore {
     return getValue(this.store, namePath);
   };
 
+  /**
+   * 获取指定 nameList 包含的 filedName 对应错误信息集合数组
+   * @param nameList filedName 数组集合
+   * @returns filedName 错误信息集合数组
+   */
   private getFieldsError = (nameList?: NamePath[]) => {
     this.warningUnhooked();
 
@@ -263,6 +293,11 @@ export class FormStore {
     });
   };
 
+  /**
+   * 获取 filedName 对应的错误信息数组
+   * @param name fileName
+   * @returns 错误数组信息
+   */
   private getFieldError = (name: NamePath): string[] => {
     this.warningUnhooked();
 
@@ -271,6 +306,11 @@ export class FormStore {
     return fieldError.errors;
   };
 
+  /**
+   * 获取 filedName 对应的警告信息数组
+   * @param name fileName
+   * @returns 警告数组信息
+   */
   private getFieldWarning = (name: NamePath): string[] => {
     this.warningUnhooked();
 
@@ -343,6 +383,11 @@ export class FormStore {
     return this.isFieldsTouched([name]);
   };
 
+  /**
+   * 指定 nameList 内的 filed 是否存在正在校验的 filed
+   * @param nameList filedName 数组集合
+   * @returns 是否存在校验的 filed
+   */
   private isFieldsValidating = (nameList?: NamePath[]) => {
     this.warningUnhooked();
 
@@ -358,6 +403,11 @@ export class FormStore {
     });
   };
 
+  /**
+   * 当前 filedName 的 filed 是否正在校验
+   * @param name filedname
+   * @returns 是否正在校验
+   */
   private isFieldValidating = (name: NamePath) => {
     this.warningUnhooked();
 
@@ -451,6 +501,10 @@ export class FormStore {
     resetWithFields(requiredFieldEntities);
   };
 
+  /**
+   * 重置 filedValue 信息
+   * @param nameList 需要重置的 filedName 集合数组
+   */
   private resetFields = (nameList?: NamePath[]) => {
     this.warningUnhooked();
 
@@ -468,10 +522,15 @@ export class FormStore {
       const initialValue = this.getInitialValue(namePath);
       this.store = setValue(this.store, namePath, initialValue);
     });
+    // 重置 filedValue 为 initValue【form 上的 initValue 值优先级更高】
     this.resetWithFieldInitialValue({ namePathList });
     this.notifyObservers(prevStore, namePathList, { type: 'reset' });
   };
 
+  /**
+   * 设置 filedsValues 值
+   * @param fields 需要设置的 filed 属性对象集合数组 【{ name: value }, { name2: value2 }】
+   */
   private setFields = (fields: FieldData[]) => {
     this.warningUnhooked();
 
@@ -493,6 +552,10 @@ export class FormStore {
     });
   };
 
+  /**
+   * 获取所有 fileds FieldData 信息数组集合
+   * @returns fileds FieldData 信息集合数组
+   */
   private getFields = (): InternalFieldData[] => {
     const entities = this.getFieldEntities(true);
 
@@ -532,6 +595,11 @@ export class FormStore {
     }
   };
 
+  /**
+   * 注册 Field 组件实例，触发 fieldEntities 压栈
+   * @param entity
+   * @returns
+   */
   private registerField = (entity: FieldEntity) => {
     this.fieldEntities.push(entity);
 
@@ -572,6 +640,10 @@ export class FormStore {
     };
   };
 
+  /**
+   * Field 组件在需要修改表单值或触发校验时，通过 dispatch 一个 action，通知 FormStore 处理
+   * @param action
+   */
   private dispatch = (action: ReducerAction) => {
     switch (action.type) {
       case 'updateValue': {
@@ -589,6 +661,12 @@ export class FormStore {
     }
   };
 
+  /**
+   * // 用于通知 Field 组件 Store 有变化，并传入原来的 Store 和新的 Store
+   * @param prevStore 原 Store
+   * @param namePathList 有变更的表单的路径集合
+   * @param info 通知信息
+   */
   private notifyObservers = (
     prevStore: Store,
     namePathList: InternalNamePath[] | null,
@@ -875,21 +953,24 @@ export class FormStore {
   };
 }
 
+// 创建单例 FormStore 实例对象 form
 function useForm<Values = any>(form?: FormInstance<Values>): [FormInstance<Values>] {
   const formRef = React.useRef<FormInstance>();
   const [, forceUpdate] = React.useState({});
 
   if (!formRef.current) {
+    // 参数是否传入 form 实例
     if (form) {
       formRef.current = form;
     } else {
-      // Create a new FormStore if not provided
+      // 参数没有提供 form 实例对象
       const forceReRender = () => {
         forceUpdate({});
       };
 
       const formStore: FormStore = new FormStore(forceReRender);
 
+      //  formStore.getForm() 包含实例对象一些列方法
       formRef.current = formStore.getForm();
     }
   }

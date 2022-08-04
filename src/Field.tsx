@@ -1,3 +1,10 @@
+/**
+ * Field 组件主要有以下几个工作
+ *  1. 通过 React Context 获取 Form 实例
+ *  2. 向 FormStore 注册自身
+ *  3. 向子组件注入 value 和 onChange（value 通过 Form 实例从 FormStore 中获取）
+ *  4. 渲染子组件
+ */
 import toChildrenArray from 'rc-util/lib/Children/toArray';
 import warning from 'rc-util/lib/warning';
 import * as React from 'react';
@@ -62,21 +69,44 @@ export interface InternalFieldProps<Values = any> {
    * When dependencies field update and current field is touched,
    * will trigger validate rules and render.
    */
+  // 如果依赖项发生变化，将重新渲染
   dependencies?: NamePath[];
+
+  // 指定如何从事件中获取价值
   getValueFromEvent?: (...args: EventArgs) => StoreValue;
+
+  // 字段名称路径
   name?: InternalNamePath;
+
+  // 更新之前将值正常化
   normalize?: (value: StoreValue, prevValue: StoreValue, allValues: Store) => StoreValue;
+
+  // 验证规则
   rules?: Rule[];
+
+  // 检查字段是否应该更新
   shouldUpdate?: ShouldUpdate<Values>;
+
+  // 通过事件触发器收集值更新，一般事件名称为 onChange、 onBlur等
   trigger?: string;
+
+  // 带有规则验证的配置触发点，一般值为 onChange、 onBlur等
   validateTrigger?: string | string[] | false;
   validateFirst?: boolean | 'parallel';
+
+  // 用元素配置值映射支柱
   valuePropName?: string;
+
+  // 自定义自加的属性值，该属性将禁用 valuePropName
   getValueProps?: (value: StoreValue) => object;
   messageVariables?: Record<string, string>;
+
+  // 字段初始值
   initialValue?: any;
   onReset?: () => void;
   onMetaChange?: (meta: Meta & { destroy?: boolean }) => void;
+
+  // 删除字段时保留值
   preserve?: boolean;
 
   /** @private Passed by Form.List props. Do not use since it will break by path check. */
@@ -144,6 +174,7 @@ class Field extends React.Component<InternalFieldProps, FieldState> implements F
     if (props.fieldContext) {
       const { getInternalHooks }: InternalFormInstance = props.fieldContext;
       const { initEntityValue } = getInternalHooks(HOOK_MARK);
+      // 赋值 filed initValue
       initEntityValue(this);
     }
   }
@@ -155,8 +186,11 @@ class Field extends React.Component<InternalFieldProps, FieldState> implements F
 
     // Register on init
     if (fieldContext) {
+       // 获取 getInternalHooks 方法
       const { getInternalHooks }: InternalFormInstance = fieldContext;
       const { registerField } = getInternalHooks(HOOK_MARK);
+
+       // 向 FormStore 注册自身
       this.cancelRegisterFunc = registerField(this);
     }
 
@@ -224,6 +258,15 @@ class Field extends React.Component<InternalFieldProps, FieldState> implements F
 
   // ========================= Field Entity Interfaces =========================
   // Trigger by store update. Check if need update the component
+  /**
+   * 当 FormStore 里的值变化时（可能是 onChange 触发，也可能是 setFieldsValue 触发）
+   * FormStore 会调用此函数（Field 已经把自身注册到 FormStore 中）
+   * 在这里 Field 就会根据一些条件决定是否要进行更新
+   * @param prevStore
+   * @param namePathList
+   * @param info
+   * @returns
+   */
   public onStoreChange: FieldEntity['onStoreChange'] = (prevStore, namePathList, info) => {
     const { shouldUpdate, dependencies = [], onReset } = this.props;
     const { store } = info;
@@ -507,6 +550,7 @@ class Field extends React.Component<InternalFieldProps, FieldState> implements F
     };
 
     // Add trigger
+    // trigger 默认为 onChange，可以通过 props 更改
     control[trigger] = (...args: EventArgs) => {
       // Mark as touched
       this.touched = true;
@@ -525,6 +569,7 @@ class Field extends React.Component<InternalFieldProps, FieldState> implements F
         newValue = normalize(newValue, value, getFieldsValue(true));
       }
 
+      // 通知 FormStore 有值变更
       dispatch({
         type: 'updateValue',
         namePath,
@@ -568,6 +613,7 @@ class Field extends React.Component<InternalFieldProps, FieldState> implements F
     const { resetCount } = this.state;
     const { children } = this.props;
 
+    // 判断 children 是什么类型
     const { child, isFunction } = this.getOnlyChild(children);
 
     // Not need to `cloneElement` since user can handle this in render function self
@@ -575,6 +621,7 @@ class Field extends React.Component<InternalFieldProps, FieldState> implements F
     if (isFunction) {
       returnChildNode = child;
     } else if (React.isValidElement(child)) {
+      // 通过 cloneElement 注入 value 和 onChange
       returnChildNode = React.cloneElement(
         child as React.ReactElement,
         this.getControlled((child as React.ReactElement).props),

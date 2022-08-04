@@ -23,6 +23,11 @@ export default class Demo extends React.Component {
     }, 500);
   };
 
+  componentDidMount(): void {
+    console.log(this.formRef.current.getFieldsValue(), 'this.formRef.getFieldsValue();')
+  }
+
+
   public render() {
     return (
       <div>
